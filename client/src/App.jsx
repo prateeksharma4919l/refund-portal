@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, ClipboardList, History, LockKeyhole, LogOut, Moon, Search, Shield, Sun, UserRound } from "lucide-react";
+import { BarChart3, CheckCircle2, ClipboardList, History, LockKeyhole, LogOut, Moon, Search, Shield, Sun, UserRound, X } from "lucide-react";
 import api from "./api";
 import { getStoredValue, removeStoredValue, setStoredValue } from "./storage";
 
@@ -335,6 +335,7 @@ function RefundPage() {
 
 function HistoryPage() {
   const [history, setHistory] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -348,20 +349,97 @@ function HistoryPage() {
     <>
       <PageTitle title="Transaction History" subtitle="Recent verifications are saved here for quick follow-up." />
       {error && <Alert tone="error">{error}</Alert>}
-      <DataTable
-        columns={["Hash", "Wallet", "Currency", "Network", "Entered", "Verified", "Block", "Status"]}
-        rows={history.map((item) => [
-          item.txid,
-          item.walletAddress,
-          item.currency || "-",
-          item.network,
-          item.requestedAmount || "-",
-          item.amount,
-          item.blockNumber || "Pending",
-          item.rawStatus || (item.confirmed ? "Confirmed" : "Pending")
-        ])}
-      />
+      <div className="grid gap-6">
+        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[920px] text-left text-sm">
+              <thead className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                <tr>
+                  {["Hash", "Wallet", "Currency", "Network", "Entered", "Verified", "Status", "Action"].map((head) => (
+                    <th key={head} className="px-4 py-3 font-semibold">{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => {
+                  const isSelected = (selected?._id || selected?.txid) === (item._id || item.txid);
+
+                  return (
+                  <tr key={item._id || item.txid} className={`border-t border-zinc-200 dark:border-zinc-800 ${isSelected ? "bg-teal-50 dark:bg-teal-950/40" : ""}`}>
+                    <td className="max-w-64 px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <button className={ghostButtonClass} onClick={() => setSelected(item)}>Details</button>
+                        <span className="break-all pt-2">{item.txid}</span>
+                      </div>
+                    </td>
+                    <td className="max-w-56 break-all px-4 py-3">{item.walletAddress}</td>
+                    <td className="px-4 py-3">{item.currency || "-"}</td>
+                    <td className="px-4 py-3">{item.network}</td>
+                    <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
+                    <td className="px-4 py-3">{item.amount}</td>
+                    <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
+                    <td className="px-4 py-3">
+                      <button className={buttonClass} onClick={() => setSelected(item)}>View Full Details</button>
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {history.length === 0 && <EmptyState text="No records found." />}
+        </div>
+      </div>
+      {selected && <TransactionDetailModal transaction={selected} onClose={() => setSelected(null)} />}
     </>
+  );
+}
+
+function TransactionDetailModal({ transaction, onClose }) {
+  if (!transaction) {
+    return null;
+  }
+
+  const details = [
+    ["Transaction Hash", transaction.txid],
+    ["Wallet Address", transaction.walletAddress],
+    ["Currency", transaction.currency || "-"],
+    ["Network", transaction.network],
+    ["Entered Amount", transaction.requestedAmount || "-"],
+    ["Verified Amount", transaction.amount ?? "-"],
+    ["Sender", transaction.sender || "-"],
+    ["Receiver", transaction.receiver || "-"],
+    ["Block Number", transaction.blockNumber || "Pending"],
+    ["Confirmations", transaction.confirmations ?? "-"],
+    ["Status", transaction.rawStatus || (transaction.confirmed ? "confirmed" : "pending")],
+    ["Saved At", transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : "-"]
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4">
+      <section className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold">Transaction Full Details</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Selected history record</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge status={transaction.rawStatus || (transaction.confirmed ? "approved" : "pending")} />
+            <button className={ghostButtonClass} onClick={onClose} aria-label="Close details">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {details.map(([label, value]) => (
+            <div key={label} className="rounded-md bg-zinc-50 p-3 dark:bg-zinc-950">
+              <div className="text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">{label}</div>
+              <div className="mt-1 break-all text-sm font-semibold">{value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -559,6 +637,8 @@ function Metric({ label, value, tone }) {
 function StatusBadge({ status }) {
   const styles = {
     pending: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300",
+    confirmed: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300",
+    "manual-review": "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300",
     approved: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300",
     rejected: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
   };
