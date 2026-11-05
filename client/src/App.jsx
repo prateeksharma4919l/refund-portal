@@ -55,6 +55,9 @@ function App() {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-950 transition dark:bg-zinc-950 dark:text-zinc-50">
       <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm font-semibold text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          Security Notice: All transaction activity is currently paused while this portal is under compliance and cyber safety review.
+        </div>
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <a href="#verify" className="flex items-center gap-2 text-base font-bold">
             <Shield className="h-5 w-5 text-teal-700 dark:text-teal-400" />
@@ -565,8 +568,8 @@ function AdminDashboard() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              <tr>
-                {["Name", "Email", "Amount", "Currency", "Wallet", "TX Hash", "Network", "Reason", "Status", "Actions"].map((head) => (
+                <tr>
+                  {["Name", "Email", "Amount", "Currency", "Wallet", "TX Hash", "Network", "Department Note", "Status", "Actions"].map((head) => (
                   <th key={head} className="px-4 py-3 font-semibold">{head}</th>
                 ))}
               </tr>

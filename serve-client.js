@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, "client", "dist");
 const apiTarget = "http://localhost:5000";
-const port = 5173;
+const port = Number(process.env.CLIENT_PORT || 5174);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
