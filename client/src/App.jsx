@@ -168,10 +168,15 @@ function VerifyPage() {
     setError("");
     setTransaction(null);
     try {
-      const { data } = await api.post("/transactions/verify", form);
+      const { data } = await api.post("/transactions/verify", {
+        ...form,
+        txid: form.txid.trim(),
+        walletAddress: form.walletAddress.trim(),
+        requestedAmount: form.requestedAmount === "" ? undefined : Number(form.requestedAmount)
+      });
       setTransaction(data.transaction);
     } catch (err) {
-      setError(err.response?.data?.message || "Verification failed");
+      setError(getApiErrorMessage(err, "Verification failed"));
     } finally {
       setLoading(false);
     }

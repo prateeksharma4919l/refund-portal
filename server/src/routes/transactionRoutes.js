@@ -6,12 +6,17 @@ import { createTransactionHistory, listTransactionHistory } from "../lib/store.j
 
 const router = express.Router();
 
+const optionalAmountSchema = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.coerce.number().positive().max(1_000_000).optional()
+);
+
 const verifySchema = z.object({
   body: z.object({
-    txid: z.string().min(10).max(120),
-    walletAddress: z.string().min(10).max(120),
+    txid: z.string().trim().min(10).max(120),
+    walletAddress: z.string().trim().min(10).max(120),
     currency: z.enum(["btc", "eth", "ltc", "usdt"]),
-    requestedAmount: z.coerce.number().positive().max(1_000_000).optional(),
+    requestedAmount: optionalAmountSchema,
     network: z.enum(["bitcoin", "ethereum", "litecoin", "tron", "bsc", "polygon"])
   })
 });
