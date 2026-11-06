@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import { findUserById } from "../lib/store.js";
 
 export async function requireAuth(req, _res, next) {
   try {
@@ -12,14 +11,13 @@ export async function requireAuth(req, _res, next) {
     }
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await findUserById(payload.id);
-    if (!user) {
+    if (!payload || typeof payload !== "object" || typeof payload.id !== "string" || payload.role !== "admin") {
       const error = new Error("Invalid session");
       error.statusCode = 401;
       throw error;
     }
 
-    req.user = user;
+    req.user = { _id: payload.id, role: payload.role };
     next();
   } catch (error) {
     error.statusCode = error.statusCode || 401;

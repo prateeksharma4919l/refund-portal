@@ -39,6 +39,7 @@ const currencyOptions = [
 function App() {
   const [dark, setDark] = useState(() => getStoredValue("theme") === "dark");
   const [admin, setAdmin] = useState(() => readSavedAdmin());
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [page, setPage] = useState(() => window.location.hash.replace("#", "") || "verify");
 
   useEffect(() => {
@@ -52,10 +53,20 @@ function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  useEffect(() => {
+    const onInvalidSession = () => {
+      setAdmin(null);
+      setSessionExpired(true);
+    };
+    window.addEventListener("admin-session-invalid", onInvalidSession);
+    return () => window.removeEventListener("admin-session-invalid", onInvalidSession);
+  }, []);
+
   function logout() {
     removeStoredValue("adminToken");
     removeStoredValue("adminUser");
     setAdmin(null);
+    setSessionExpired(false);
   }
 
   const activePage = ["verify", "history", "refund", "admin"].includes(page) ? page : "verify";
@@ -105,7 +116,7 @@ function App() {
         {activePage === "verify" && <VerifyPage />}
         {activePage === "history" && <HistoryPage admin={admin} />}
         {activePage === "refund" && <RefundPage />}
-        {activePage === "admin" && <AdminPage admin={admin} setAdmin={setAdmin} />}
+        {activePage === "admin" && <AdminPage admin={admin} setAdmin={setAdmin} sessionExpired={sessionExpired} />}
       </main>
     </div>
   );
@@ -468,12 +479,12 @@ function TransactionDetailModal({ transaction, onClose }) {
   );
 }
 
-function AdminPage({ admin, setAdmin }) {
-  if (!admin) return <LoginPage setAdmin={setAdmin} />;
+function AdminPage({ admin, setAdmin, sessionExpired }) {
+  if (!admin) return <LoginPage setAdmin={setAdmin} sessionExpired={sessionExpired} />;
   return <AdminDashboard />;
 }
 
-function LoginPage({ setAdmin }) {
+function LoginPage({ setAdmin, sessionExpired }) {
   const [form, setForm] = useState({ username: "prateeksharma4919l", password: "1234" });
   const [error, setError] = useState("");
 
@@ -543,6 +554,7 @@ function LoginPage({ setAdmin }) {
             <input type="password" className={`${inputClass} pl-9`} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
           </div>
         </Field>
+        {sessionExpired && <Alert tone="error">Your admin session is no longer valid. Please sign in again to load dashboard data.</Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         <button className={`${buttonClass} w-full`}>Login to Dashboard</button>
         <div className="mt-4 rounded-md bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
