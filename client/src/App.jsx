@@ -12,6 +12,14 @@ const ghostButtonClass =
 const badgeClass =
   "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold";
 
+function getApiErrorMessage(error, fallback) {
+  const issues = error.response?.data?.issues;
+  if (Array.isArray(issues) && issues.length > 0) {
+    return issues.map(({ field, message }) => `${field || "Request"}: ${message}`).join("; ");
+  }
+  return error.response?.data?.message || fallback;
+}
+
 const networkLabels = {
   bitcoin: "Bitcoin",
   ethereum: "Ethereum ERC20",
@@ -95,7 +103,7 @@ function App() {
           </div>
         </section>
         {activePage === "verify" && <VerifyPage />}
-        {activePage === "history" && <HistoryPage />}
+        {activePage === "history" && <HistoryPage admin={admin} />}
         {activePage === "refund" && <RefundPage />}
         {activePage === "admin" && <AdminPage admin={admin} setAdmin={setAdmin} />}
       </main>
@@ -260,11 +268,21 @@ function RefundPage() {
     setMessage("");
     setError("");
     try {
-      await api.post("/refunds", form);
+      await api.post("/refunds", {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        transactionHash: form.transactionHash.trim(),
+        walletAddress: form.walletAddress.trim(),
+        currency: form.currency.trim(),
+        network: form.network.trim(),
+        withdrawalAmount: Number(form.withdrawalAmount),
+        reason: form.reason.trim()
+      });
       setMessage("Refund request submitted successfully.");
       setForm(emptyForm);
     } catch (err) {
-      setError(err.response?.data?.message || "Could not submit request");
+      setError(getApiErrorMessage(err, "Could not submit request"));
     }
   }
 
@@ -333,17 +351,66 @@ function RefundPage() {
   );
 }
 
-function HistoryPage() {
+function HistoryPage({ admin }) {
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [recoveredAmounts, setRecoveredAmounts] = useState({});
+  const [savingId, setSavingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     api
       .get("/transactions/history")
       .then(({ data }) => setHistory(data.history))
-      .catch((err) => setError(err.response?.data?.message || "Could not load history"));
+      .catch((err) => setError(getApiErrorMessage(err, "Could not load history")));
   }, []);
+
+  async function saveRecoveredAmount(item) {
+    const value = recoveredAmounts[item._id] ?? item.recoveredAmount;
+    const recoveredAmount = value === "" || value == null ? NaN : Number(value);
+    if (!Number.isFinite(recoveredAmount) || recoveredAmount < 0 || recoveredAmount > 1_000_000) {
+      setError("Enter a recovered amount between 0 and 1,000,000.");
+      return;
+    }
+
+    setSavingId(item._id);
+    setError("");
+    try {
+      const { data } = await api.patch(`/admin/history/${item._id}`, { recoveredAmount });
+      setHistory((items) => items.map((record) => record._id === item._id ? data.transaction : record));
+      setRecoveredAmounts((values) => {
+        const next = { ...values };
+        delete next[item._id];
+        return next;
+      });
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not update recovered amount"));
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function deleteHistoryRecord(item) {
+    if (!window.confirm("Delete this transaction history record? This cannot be undone.")) return;
+
+    setDeletingId(item._id);
+    setError("");
+    try {
+      await api.delete(`/admin/history/${item._id}`);
+      setHistory((items) => items.filter((record) => record._id !== item._id));
+      setSelected((record) => record?._id === item._id ? null : record);
+      setRecoveredAmounts((values) => {
+        const next = { ...values };
+        delete next[item._id];
+        return next;
+      });
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Could not delete history record"));
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   return (
     <>
@@ -352,10 +419,10 @@ function HistoryPage() {
       <div className="grid gap-6">
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 <tr>
-                  {["Hash", "Wallet", "Currency", "Network", "Entered", "Verified", "Status", "Action"].map((head) => (
+                  {["Hash", "Wallet", "Currency", "Network", "Entered", "Verified", "Recovered Amount", "Status", "Actions"].map((head) => (
                     <th key={head} className="px-4 py-3 font-semibold">{head}</th>
                   ))}
                 </tr>
@@ -377,9 +444,43 @@ function HistoryPage() {
                     <td className="px-4 py-3">{item.network}</td>
                     <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
                     <td className="px-4 py-3">{item.amount}</td>
+                    <td className="px-4 py-3">
+                      {admin ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            aria-label={`Recovered amount for ${item.txid}`}
+                            type="number"
+                            min="0"
+                            max="1000000"
+                            step="any"
+                            className={`${inputClass} min-w-32`}
+                            value={recoveredAmounts[item._id] ?? item.recoveredAmount ?? ""}
+                            onChange={(event) => setRecoveredAmounts((values) => ({ ...values, [item._id]: event.target.value }))}
+                          />
+                          <button
+                            className={ghostButtonClass}
+                            disabled={savingId === item._id}
+                            onClick={() => saveRecoveredAmount(item)}
+                          >
+                            {savingId === item._id ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      ) : item.recoveredAmount ?? "-"}
+                    </td>
                     <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
                     <td className="px-4 py-3">
-                      <button className={buttonClass} onClick={() => setSelected(item)}>View Full Details</button>
+                      <div className="flex items-center gap-2">
+                        <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
+                        {admin && (
+                          <button
+                            className={ghostButtonClass}
+                            disabled={deletingId === item._id}
+                            onClick={() => deleteHistoryRecord(item)}
+                          >
+                            {deletingId === item._id ? "Deleting..." : "Delete"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   );
@@ -407,6 +508,7 @@ function TransactionDetailModal({ transaction, onClose }) {
     ["Network", transaction.network],
     ["Entered Amount", transaction.requestedAmount || "-"],
     ["Verified Amount", transaction.amount ?? "-"],
+    ["Recovered Amount", transaction.recoveredAmount ?? "-"],
     ["Sender", transaction.sender || "-"],
     ["Receiver", transaction.receiver || "-"],
     ["Block Number", transaction.blockNumber || "Pending"],

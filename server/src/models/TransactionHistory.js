@@ -10,6 +10,7 @@ const transactionHistorySchema = new mongoose.Schema(
     sender: String,
     receiver: String,
     amount: Number,
+    recoveredAmount: { type: Number, min: 0, default: null },
     blockNumber: Number,
     confirmations: Number,
     confirmed: Boolean,
