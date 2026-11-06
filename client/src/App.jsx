@@ -584,11 +584,6 @@ function AdminDashboard() {
     load();
   }, []);
 
-  async function updateStatus(id, status) {
-    await api.patch(`/admin/refunds/${id}`, { status });
-    load();
-  }
-
   return (
     <>
       <PageTitle title="Admin Dashboard" subtitle="Review refund submissions, withdrawal amounts, and network details." />
@@ -600,10 +595,10 @@ function AdminDashboard() {
       </div>
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-[1000px] text-left text-sm">
             <thead className="bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 <tr>
-                  {["Name", "Email", "Amount", "Currency", "Wallet", "TX Hash", "Network", "Department Note", "Status", "Actions"].map((head) => (
+                  {["Name", "Email", "Amount", "Currency", "Wallet", "TX Hash", "Network", "Department Note", "Status"].map((head) => (
                   <th key={head} className="px-4 py-3 font-semibold">{head}</th>
                 ))}
               </tr>
@@ -620,10 +615,6 @@ function AdminDashboard() {
                   <td className="px-4 py-3">{refund.network}</td>
                   <td className="max-w-64 px-4 py-3">{refund.reason}</td>
                   <td className="px-4 py-3"><StatusBadge status={refund.status} /></td>
-                  <td className="space-x-2 px-4 py-3">
-                    <button className={ghostButtonClass} onClick={() => updateStatus(refund._id, "approved")}>Approve</button>
-                    <button className={ghostButtonClass} onClick={() => updateStatus(refund._id, "rejected")}>Reject</button>
-                  </td>
                 </tr>
               ))}
             </tbody>
