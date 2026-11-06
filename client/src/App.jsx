@@ -359,9 +359,6 @@ function RefundPage() {
 function HistoryPage({ admin }) {
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [recoveredAmounts, setRecoveredAmounts] = useState({});
-  const [savingId, setSavingId] = useState("");
-  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -370,52 +367,6 @@ function HistoryPage({ admin }) {
       .then(({ data }) => setHistory(data.history))
       .catch((err) => setError(getApiErrorMessage(err, "Could not load history")));
   }, []);
-
-  async function saveRecoveredAmount(item) {
-    const value = recoveredAmounts[item._id] ?? item.recoveredAmount;
-    const recoveredAmount = value === "" || value == null ? NaN : Number(value);
-    if (!Number.isFinite(recoveredAmount) || recoveredAmount < 0 || recoveredAmount > 1_000_000) {
-      setError("Enter a recovered amount between 0 and 1,000,000.");
-      return;
-    }
-
-    setSavingId(item._id);
-    setError("");
-    try {
-      const { data } = await api.patch(`/admin/history/${item._id}`, { recoveredAmount });
-      setHistory((items) => items.map((record) => record._id === item._id ? data.transaction : record));
-      setRecoveredAmounts((values) => {
-        const next = { ...values };
-        delete next[item._id];
-        return next;
-      });
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Could not update recovered amount"));
-    } finally {
-      setSavingId("");
-    }
-  }
-
-  async function deleteHistoryRecord(item) {
-    if (!window.confirm("Delete this transaction history record? This cannot be undone.")) return;
-
-    setDeletingId(item._id);
-    setError("");
-    try {
-      await api.delete(`/admin/history/${item._id}`);
-      setHistory((items) => items.filter((record) => record._id !== item._id));
-      setSelected((record) => record?._id === item._id ? null : record);
-      setRecoveredAmounts((values) => {
-        const next = { ...values };
-        delete next[item._id];
-        return next;
-      });
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Could not delete history record"));
-    } finally {
-      setDeletingId("");
-    }
-  }
 
   return (
     <>
@@ -449,43 +400,10 @@ function HistoryPage({ admin }) {
                     <td className="px-4 py-3">{item.network}</td>
                     <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
                     <td className="px-4 py-3">{item.amount}</td>
-                    <td className="px-4 py-3">
-                      {admin ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            aria-label={`Recovered amount for ${item.txid}`}
-                            type="number"
-                            min="0"
-                            max="1000000"
-                            step="any"
-                            className={`${inputClass} min-w-32`}
-                            value={recoveredAmounts[item._id] ?? item.recoveredAmount ?? ""}
-                            onChange={(event) => setRecoveredAmounts((values) => ({ ...values, [item._id]: event.target.value }))}
-                          />
-                          <button
-                            className={ghostButtonClass}
-                            disabled={savingId === item._id}
-                            onClick={() => saveRecoveredAmount(item)}
-                          >
-                            {savingId === item._id ? "Saving..." : "Save"}
-                          </button>
-                        </div>
-                      ) : item.recoveredAmount ?? "-"}
-                    </td>
+                    <td className="px-4 py-3">{item.recoveredAmount ?? 0}</td>
                     <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
-                        {admin && (
-                          <button
-                            className={ghostButtonClass}
-                            disabled={deletingId === item._id}
-                            onClick={() => deleteHistoryRecord(item)}
-                          >
-                            {deletingId === item._id ? "Deleting..." : "Delete"}
-                          </button>
-                        )}
-                      </div>
+                      <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
                     </td>
                   </tr>
                   );

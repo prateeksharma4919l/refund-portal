@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import {
-  deleteTransactionHistory,
   getRefundAnalytics,
   listRefunds,
   updateRefund,
@@ -75,21 +74,6 @@ router.patch("/history/:id", validate(updateHistorySchema), async (req, res, nex
     }
 
     res.json({ transaction });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.delete("/history/:id", validate(historyIdSchema), async (req, res, next) => {
-  try {
-    const deleted = await deleteTransactionHistory(req.validated.params.id);
-    if (!deleted) {
-      const error = new Error("Transaction history record not found");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    res.status(204).end();
   } catch (error) {
     next(error);
   }

@@ -221,16 +221,3 @@ export async function updateTransactionHistory(id, recoveredAmount) {
     { new: true, runValidators: true }
   );
 }
-
-export async function deleteTransactionHistory(id) {
-  if (useMemory()) {
-    const index = memory.history.findIndex((item) => item._id === id);
-    if (index === -1) return false;
-    memory.history.splice(index, 1);
-    saveMemoryStore();
-    return true;
-  }
-
-  const record = await TransactionHistory.findByIdAndDelete(id);
-  return Boolean(record);
-}
