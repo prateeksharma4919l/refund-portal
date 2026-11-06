@@ -401,10 +401,7 @@ function HistoryPage({ admin }) {
                   return (
                   <tr key={item._id || item.txid} className={`border-t border-zinc-200 dark:border-zinc-800 ${isSelected ? "bg-teal-50 dark:bg-teal-950/40" : ""}`}>
                     <td className="max-w-64 px-4 py-3">
-                      <div className="flex items-start gap-2">
-                        <button className={ghostButtonClass} onClick={() => setSelected(item)}>Details</button>
-                        <span className="break-all pt-2">{item.txid}</span>
-                      </div>
+                      <span className="break-all">{item.txid}</span>
                     </td>
                     <td className="max-w-56 break-all px-4 py-3">{item.walletAddress}</td>
                     <td className="px-4 py-3">{item.currency || "-"}</td>
