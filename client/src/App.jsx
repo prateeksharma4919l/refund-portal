@@ -36,33 +36,9 @@ const currencyOptions = [
   { id: "ltc", label: "LTC", networks: ["litecoin"] }
 ];
 
-const demoHistoryRecords = [
-  { requestedAmount: 500000 },
-  { requestedAmount: 900000 },
-  { requestedAmount: 900000 }
-].map(({ requestedAmount }, index) => ({
-  _id: `demo-history-${index + 1}`,
-  txid: "0x949a0fea02a12d74bd84c9dd47360553a31e16bde04d60603a72a5baeca58a5a",
-  walletAddress: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
-  currency: "USDT",
-  network: "BNB Smart Chain BEP20",
-  requestedAmount,
-  amount: 0,
-  recoveredAmount: null,
-  sender: "Unknown (demo record)",
-  receiver: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
-  blockNumber: null,
-  confirmations: 0,
-  confirmed: false,
-  rawStatus: "manual-review",
-  createdAt: "2026-11-05T00:00:00.000Z",
-  isDemo: true
-}));
-
 function getRecoveredAmount(transaction) {
   return {
-    amount: transaction.isDemo ? null : transaction.recoveredAmount ?? 0,
-    isDemo: Boolean(transaction.isDemo)
+    amount: transaction.recoveredAmount ?? 0
   };
 }
 
@@ -400,28 +376,18 @@ function RefundPage() {
 function HistoryPage({ admin }) {
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [showingDemoHistory, setShowingDemoHistory] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api
       .get("/transactions/history")
-      .then(({ data }) => {
-        const records = data.history.length > 0 ? data.history : demoHistoryRecords;
-        setHistory(records);
-        setShowingDemoHistory(data.history.length === 0);
-      })
+      .then(({ data }) => setHistory(data.history))
       .catch((err) => setError(getApiErrorMessage(err, "Could not load history")));
   }, []);
 
   return (
     <>
       <PageTitle title="Transaction History" subtitle="Recent verifications are saved here for quick follow-up." />
-      {showingDemoHistory && (
-        <Alert tone="success">
-          Sample history is shown because there are no saved records. These rows are examples and are not stored in the database.
-        </Alert>
-      )}
       {error && <Alert tone="error">{error}</Alert>}
       <div className="grid gap-6">
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -448,7 +414,7 @@ function HistoryPage({ admin }) {
                     <td className="px-4 py-3">{item.network}</td>
                     <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
                     <td className="px-4 py-3">{item.amount}</td>
-                    <td className="px-4 py-3">{getRecoveredAmount(item).amount ?? "-"}</td>
+                    <td className="px-4 py-3">{getRecoveredAmount(item).amount}</td>
                     <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
                     <td className="px-4 py-3">
                       <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
@@ -479,7 +445,7 @@ function TransactionDetailModal({ transaction, onClose }) {
     ["Network", transaction.network],
     ["Entered Amount", transaction.requestedAmount || "-"],
     ["Verified Amount", transaction.amount ?? "-"],
-    [transaction.isDemo ? "Recovered Amount (Sample)" : "Recovered Amount", getRecoveredAmount(transaction).amount ?? "-"],
+    ["Recovered Amount", getRecoveredAmount(transaction).amount],
     ["Sender", transaction.sender || "-"],
     ["Receiver", transaction.receiver || "-"],
     ["Block Number", transaction.blockNumber || "Pending"],
