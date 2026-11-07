@@ -36,6 +36,18 @@ const currencyOptions = [
   { id: "ltc", label: "LTC", networks: ["litecoin"] }
 ];
 
+const demoRecoveredAmounts = {
+  "90d15b07-c989-4250-9ab9-761030aa0758": 49.8,
+  "cf1c4637-1574-4a8a-b515-5bca24f48585": 43.63,
+  "cab13994-6bd5-4184-8601-1c4db1eb2343": 45.2
+};
+
+function getRecoveredAmount(transaction) {
+  const demoAmount = demoRecoveredAmounts[transaction._id];
+  if (demoAmount !== undefined) return { amount: demoAmount, isDemo: true };
+  return { amount: transaction.recoveredAmount ?? 0, isDemo: false };
+}
+
 function App() {
   const [dark, setDark] = useState(() => getStoredValue("theme") === "dark");
   const [admin, setAdmin] = useState(() => readSavedAdmin());
@@ -408,7 +420,10 @@ function HistoryPage({ admin }) {
                     <td className="px-4 py-3">{item.network}</td>
                     <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
                     <td className="px-4 py-3">{item.amount}</td>
-                    <td className="px-4 py-3">{item.recoveredAmount ?? 0}</td>
+                    <td className="px-4 py-3">
+                      {getRecoveredAmount(item).amount}
+                      {getRecoveredAmount(item).isDemo && <span className="ml-2 text-xs text-amber-600 dark:text-amber-300">Demo</span>}
+                    </td>
                     <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
                     <td className="px-4 py-3">
                       <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
@@ -439,7 +454,7 @@ function TransactionDetailModal({ transaction, onClose }) {
     ["Network", transaction.network],
     ["Entered Amount", transaction.requestedAmount || "-"],
     ["Verified Amount", transaction.amount ?? "-"],
-    ["Recovered Amount", transaction.recoveredAmount ?? "-"],
+    [getRecoveredAmount(transaction).isDemo ? "Recovered Amount (Demo)" : "Recovered Amount", getRecoveredAmount(transaction).amount],
     ["Sender", transaction.sender || "-"],
     ["Receiver", transaction.receiver || "-"],
     ["Block Number", transaction.blockNumber || "Pending"],
