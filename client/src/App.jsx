@@ -37,10 +37,10 @@ const currencyOptions = [
 ];
 
 const demoHistoryRecords = [
-  { requestedAmount: 500000, recoveredAmount: 49.62 },
-  { requestedAmount: 900000, recoveredAmount: 39.3 },
-  { requestedAmount: 900000, recoveredAmount: 19.57 }
-].map(({ requestedAmount, recoveredAmount }, index) => ({
+  { requestedAmount: 500000 },
+  { requestedAmount: 900000 },
+  { requestedAmount: 900000 }
+].map(({ requestedAmount }, index) => ({
   _id: `demo-history-${index + 1}`,
   txid: "0x949a0fea02a12d74bd84c9dd47360553a31e16bde04d60603a72a5baeca58a5a",
   walletAddress: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
@@ -48,7 +48,7 @@ const demoHistoryRecords = [
   network: "BNB Smart Chain BEP20",
   requestedAmount,
   amount: 0,
-  recoveredAmount,
+  recoveredAmount: null,
   sender: "Unknown (demo record)",
   receiver: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
   blockNumber: null,
@@ -61,7 +61,7 @@ const demoHistoryRecords = [
 
 function getRecoveredAmount(transaction) {
   return {
-    amount: transaction.recoveredAmount ?? 0,
+    amount: transaction.isDemo ? null : transaction.recoveredAmount ?? 0,
     isDemo: Boolean(transaction.isDemo)
   };
 }
@@ -418,8 +418,8 @@ function HistoryPage({ admin }) {
     <>
       <PageTitle title="Transaction History" subtitle="Recent verifications are saved here for quick follow-up." />
       {showingDemoHistory && (
-        <Alert tone="error">
-          Showing demo records because the server returned no saved history. These examples are in the client code and are not stored in the database.
+        <Alert tone="success">
+          Sample history is shown because there are no saved records. These rows are examples and are not stored in the database.
         </Alert>
       )}
       {error && <Alert tone="error">{error}</Alert>}
@@ -448,10 +448,7 @@ function HistoryPage({ admin }) {
                     <td className="px-4 py-3">{item.network}</td>
                     <td className="px-4 py-3">{item.requestedAmount || "-"}</td>
                     <td className="px-4 py-3">{item.amount}</td>
-                    <td className="px-4 py-3">
-                      {getRecoveredAmount(item).amount}
-                      {getRecoveredAmount(item).isDemo && <span className="ml-2 text-xs text-amber-600 dark:text-amber-300">Demo</span>}
-                    </td>
+                    <td className="px-4 py-3">{getRecoveredAmount(item).amount ?? "-"}</td>
                     <td className="px-4 py-3"><StatusBadge status={item.rawStatus || (item.confirmed ? "approved" : "pending")} /></td>
                     <td className="px-4 py-3">
                       <button className={buttonClass} onClick={() => setSelected(item)}>View Details</button>
@@ -482,7 +479,7 @@ function TransactionDetailModal({ transaction, onClose }) {
     ["Network", transaction.network],
     ["Entered Amount", transaction.requestedAmount || "-"],
     ["Verified Amount", transaction.amount ?? "-"],
-    [getRecoveredAmount(transaction).isDemo ? "Recovered Amount (Demo)" : "Recovered Amount", getRecoveredAmount(transaction).amount],
+    [transaction.isDemo ? "Recovered Amount (Sample)" : "Recovered Amount", getRecoveredAmount(transaction).amount ?? "-"],
     ["Sender", transaction.sender || "-"],
     ["Receiver", transaction.receiver || "-"],
     ["Block Number", transaction.blockNumber || "Pending"],
