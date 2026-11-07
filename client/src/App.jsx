@@ -36,16 +36,34 @@ const currencyOptions = [
   { id: "ltc", label: "LTC", networks: ["litecoin"] }
 ];
 
-const demoRecoveredAmounts = {
-  "90d15b07-c989-4250-9ab9-761030aa0758": 49.8,
-  "cf1c4637-1574-4a8a-b515-5bca24f48585": 43.63,
-  "cab13994-6bd5-4184-8601-1c4db1eb2343": 45.2
-};
+const demoHistoryRecords = [
+  { requestedAmount: 500000, recoveredAmount: 49.62 },
+  { requestedAmount: 900000, recoveredAmount: 39.3 },
+  { requestedAmount: 900000, recoveredAmount: 19.57 }
+].map(({ requestedAmount, recoveredAmount }, index) => ({
+  _id: `demo-history-${index + 1}`,
+  txid: "0x949a0fea02a12d74bd84c9dd47360553a31e16bde04d60603a72a5baeca58a5a",
+  walletAddress: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
+  currency: "USDT",
+  network: "BNB Smart Chain BEP20",
+  requestedAmount,
+  amount: 0,
+  recoveredAmount,
+  sender: "Unknown (demo record)",
+  receiver: "0x96e7a6740fD32A48005b06CADD1db1516d45Bb6d",
+  blockNumber: null,
+  confirmations: 0,
+  confirmed: false,
+  rawStatus: "manual-review",
+  createdAt: "2026-11-05T00:00:00.000Z",
+  isDemo: true
+}));
 
 function getRecoveredAmount(transaction) {
-  const demoAmount = demoRecoveredAmounts[transaction._id];
-  if (demoAmount !== undefined) return { amount: demoAmount, isDemo: true };
-  return { amount: transaction.recoveredAmount ?? 0, isDemo: false };
+  return {
+    amount: transaction.recoveredAmount ?? 0,
+    isDemo: Boolean(transaction.isDemo)
+  };
 }
 
 function App() {
@@ -382,18 +400,28 @@ function RefundPage() {
 function HistoryPage({ admin }) {
   const [history, setHistory] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [showingDemoHistory, setShowingDemoHistory] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api
       .get("/transactions/history")
-      .then(({ data }) => setHistory(data.history))
+      .then(({ data }) => {
+        const records = data.history.length > 0 ? data.history : demoHistoryRecords;
+        setHistory(records);
+        setShowingDemoHistory(data.history.length === 0);
+      })
       .catch((err) => setError(getApiErrorMessage(err, "Could not load history")));
   }, []);
 
   return (
     <>
       <PageTitle title="Transaction History" subtitle="Recent verifications are saved here for quick follow-up." />
+      {showingDemoHistory && (
+        <Alert tone="error">
+          Showing demo records because the server returned no saved history. These examples are in the client code and are not stored in the database.
+        </Alert>
+      )}
       {error && <Alert tone="error">{error}</Alert>}
       <div className="grid gap-6">
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
